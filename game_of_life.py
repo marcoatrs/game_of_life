@@ -2,7 +2,7 @@ import sys
 
 import numpy as np
 import pygame
-from pygame.locals import QUIT, K_ESCAPE, K_SPACE, K_RETURN
+from pygame.locals import QUIT, K_ESCAPE, K_SPACE, K_RETURN, KEYDOWN, MOUSEMOTION, MOUSEBUTTONDOWN
 
 pygame.init()
 font = pygame.font.SysFont('Verdana', 30)
@@ -93,48 +93,66 @@ class game_of_life():
                 else:
                     pygame.draw.rect(self.screen, white, (col * self.square_size, row * self.square_size, self.square_size, self.square_size), 0)
 
+    def quit_game(self):
+        pygame.quit()
+        sys.exit()
+
+    def switch_update(self):
+        self.update_game = not self.update_game
+        self.pb = self.play_button(not self.update_game, True)
+
+    def clear_screen(self):
+        self.game_board = np.zeros((self.rc, self.cc))
+        if self.update_game:
+            self.switch_update()
+
     def events(self):
 
         for event in pygame.event.get():
 
-            keys = pygame.key.get_pressed()
-            clicks = pygame.mouse.get_pressed()
-            x_pos, y_pos = pygame.mouse.get_pos()
-
             # Close game
-            if event.type == QUIT or keys[K_ESCAPE]:
-                pygame.quit()
-                sys.exit()
+            if event.type == QUIT:
+                self.quit_game()
 
-            # Play / Pause game
-            elif keys[K_SPACE] or (clicks == (1,0,0) and in_play_button(x_pos, y_pos)):
-                self.update_game = not self.update_game
+            elif event.type == KEYDOWN:
+                keys = pygame.key.get_pressed()
 
-            # Clear game
-            elif clicks == (1,0,0) and in_clear_button(x_pos, y_pos):
-                self.game_board = np.zeros((self.rc, self.cc))
+                if keys[K_ESCAPE]:
+                    self.quit_game()
+                elif keys[K_SPACE]:
+                    self.switch_update()
+                elif keys[K_RETURN]:
+                    self(True)
 
-            # Game Step
-            elif keys[K_RETURN] or (clicks == (1,0,0) and in_step_button(x_pos, y_pos)):
-                self(True)
+            elif event.type == MOUSEBUTTONDOWN:
+                clicks = pygame.mouse.get_pressed()
+                x_pos, y_pos = pygame.mouse.get_pos()
 
-            # Clicks events
-            if sum(clicks) > 0:
                 x_cell = int(np.floor(x_pos/self.square_size))
                 y_cell = int(np.floor(y_pos/self.square_size))
 
-                if y_cell < self.rc:
-                    # Revive cell
-                    if clicks == (1,0,0):
+                if clicks == (1,0,0):
+
+                    if in_play_button(x_pos, y_pos):
+                        self.switch_update()
+                    elif in_clear_button(x_pos, y_pos):
+                        self.clear_screen()
+                    elif in_step_button(x_pos, y_pos):
+                        self(True)
+                    elif y_cell < self.rc:
                         self.game_board[y_cell, x_cell] = 1
-                    # Kill cell
-                    elif clicks == (0,0,1):
+
+                elif clicks == (0,0,1):
+
+                    if y_cell < self.rc:
                         self.game_board[y_cell, x_cell] = 0
 
-            # Mouse moving
-            self.pb = self.play_button(not self.update_game, not in_play_button(x_pos, y_pos))
-            self.cb = self.clear_button(True, not in_clear_button(x_pos, y_pos))
-            self.sb = self.step_button(True, not in_step_button(x_pos, y_pos))
+            elif event.type == MOUSEMOTION:
+                x_pos, y_pos = pygame.mouse.get_pos()
+
+                self.pb = self.play_button(not self.update_game, not in_play_button(x_pos, y_pos))
+                self.cb = self.clear_button(True, not in_clear_button(x_pos, y_pos))
+                self.sb = self.step_button(True, not in_step_button(x_pos, y_pos))
 
         self.screen.blit(self.pb, self.play_button.pos)
         self.screen.blit(self.cb, self.clear_button.pos)
